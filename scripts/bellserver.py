@@ -1,18 +1,22 @@
 # Echo server program
-import socket
+try:
+    import socket
+except Exception, e:
+    import _socket as socket
 import time
+import settings
 
 class BellServer(object):
     """
     Handles listening for and responding to network and serial events within the Ring For Service project    
     """
 
-    HOST = ''
-    RECIPIENTS = ['127.0.0.1']
-    PORT = 50008
-
     def __init__(self):
         super(BellServer, self).__init__()
+
+        self.HOST = settings.HOST
+        self.RECIPIENTS = settings.RECIPIENTS
+        self.PORT = settings.PORT
 
         # create a nonblocking socket to handle server responsibilities
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
