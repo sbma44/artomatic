@@ -11,6 +11,9 @@ class BellServer(object):
     Handles listening for and responding to network and serial events within the Ring For Service project    
     """
 
+    BELL_STRIKE_SIGNAL = 'DING'
+    BELL_STRIKE_CONFIRMATION = 'DONG'
+
     def __init__(self):
         super(BellServer, self).__init__()
 
@@ -44,15 +47,17 @@ class BellServer(object):
         for recipient in self.RECIPIENTS:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((recipient, self.PORT))
-            s.send('[X]')
+            s.send(self.BELL_STRIKE_SIGNAL)
             data = s.recv(1024)
             s.close()
-            print 'Received', repr(data)
+            if data==self.BELL_STRIKE_CONFIRMATION:
+                print 'bell successfully struck'
         
     def strike_bell(self):
         """
         Send a bell strike notification to the Arduino over the serial link
         """
+        print 'DING!'
         pass
         
     def loop(self):
@@ -64,7 +69,7 @@ class BellServer(object):
         while 1:
             # check serial input for bell strike notification
             if self.bell_strike_detected():
-                self.send_bell()
+                self.transmit_bell_strike()
 
             # listen for incoming network data signalling bell strikes (in a non-blocking-compatible manner)
             data_received = False
@@ -86,8 +91,11 @@ class BellServer(object):
                     if not data: break
 
                     # TODO: replace echo with write to serial output to initiate bell strike
-                    self.strike_bell()
-                    conn.send(data.upper())
+                    if data==self.BELL_STRIKE_SIGNAL:
+                        self.strike_bell()                    
+                        conn.send(self.BELL_STRIKE_CONFIRMATION)
+            
+            time.sleep(0.01)
 
 
 if __name__ == '__main__':
