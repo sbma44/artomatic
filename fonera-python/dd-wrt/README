@@ -1,0 +1,10 @@
+This is an old beta release of DD-WRT (DD-WRT v24 Beta (08/03/07) std - build 7603).
+
+It may be downloaded from:
+http://www.dd-wrt.com/dd-wrtv2/down.php?path=downloads%2Fobsolete%2Fbeta%2FFONERA%2F2007+-+0803/
+
+IF YOU ARE TRYING TO RUN PYTHON ON A DD-WRT FONERA, USE THIS FIRMWARE.
+
+Newer firmwares take up too much space, leaving insufficient room on the JFFS2 partition for Python. Other
+v24 betas introduce odd errors that prevent Python from running.  I'm sorry, but you're stuck.  If you need newer functionality, you may want to consider the OpenWRT project.
+
