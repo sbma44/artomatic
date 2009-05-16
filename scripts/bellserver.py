@@ -3,6 +3,7 @@ try:
     import socket
 except Exception, e:
     import _socket as socket
+import serial
 import time
 import settings
 
@@ -11,8 +12,9 @@ class BellServer(object):
     Handles listening for and responding to network and serial events within the Ring For Service project    
     """
 
-    BELL_STRIKE_SIGNAL = 'DING'
-    BELL_STRIKE_CONFIRMATION = 'DONG'
+    NETWORK_BELL_STRIKE_SIGNAL = 'DING'
+    NETWORK_BELL_STRIKE_CONFIRMATION = 'DONG'
+    SERIAL_BELL_STRIKE_SIGNAL = '#'
 
     def __init__(self):
         super(BellServer, self).__init__()
@@ -27,17 +29,27 @@ class BellServer(object):
         s.bind((self.HOST, self.PORT))
         self.socket = s
         
+        # create a serial connection
+        self.serial_connection = serial.Serial(settings.SERIAL_PORT, settings.BAUD_RATE, timeout=0)
+        
+
+    def log(self, message):
+        print "%f - %s" % (time.time(), message)
+        
+    
     def close(self):
         """
         Close socket to free it up for server restart or other uses.
         """
         self.socket.close()
+        self.serial_connectsion.close()
     
     def bell_strike_detected(self):
         """
         Checks the serial connection for notice of a bell strike from the Arduino.
         """
-        # TODO: everything
+        if self.serial_connection.inWaiting()>0:
+            return self.serial_connection.read()==self.SERIAL_BELL_STRIKE_SIGNAL
         return False
         
     def transmit_bell_strike(self):
@@ -47,18 +59,20 @@ class BellServer(object):
         for recipient in self.RECIPIENTS:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((recipient, self.PORT))
-            s.send(self.BELL_STRIKE_SIGNAL)
+            s.send(self.NETWORK_BELL_STRIKE_SIGNAL)
             data = s.recv(1024)
             s.close()
-            if data==self.BELL_STRIKE_CONFIRMATION:
+            if data==self.NETWORK_BELL_STRIKE_CONFIRMATION:
                 print 'bell successfully struck'
+            self.log("Sent bell strike")
         
     def strike_bell(self):
         """
         Send a bell strike notification to the Arduino over the serial link
         """
-        print 'DING!'
-        pass
+        self.serial_connection.write(SERIAL_BELL_STRIKE_SIGNAL)
+        self.log("Struck bell")
+        print 'DING!'        
         
     def loop(self):
         """
@@ -68,7 +82,7 @@ class BellServer(object):
         self.socket.listen(1)
         while 1:
             # check serial input for bell strike notification
-            if self.bell_strike_detected():
+            while self.bell_strike_detected():
                 self.transmit_bell_strike()
 
             # listen for incoming network data signalling bell strikes (in a non-blocking-compatible manner)
@@ -91,9 +105,9 @@ class BellServer(object):
                     if not data: break
 
                     # TODO: replace echo with write to serial output to initiate bell strike
-                    if data==self.BELL_STRIKE_SIGNAL:
+                    if data==self.NETWORK_BELL_STRIKE_SIGNAL:
                         self.strike_bell()                    
-                        conn.send(self.BELL_STRIKE_CONFIRMATION)
+                        conn.send(self.NETWORK_BELL_STRIKE_CONFIRMATION)
             
             time.sleep(0.01)
 
