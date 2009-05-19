@@ -1,0 +1,16 @@
+#!/bin/sh /etc/rc.common
+# BellServer startup script
+# Copyright (C) 2007 OpenWrt.org
+
+START=90
+STOP=10
+
+start() {        
+        echo starting bellserver
+        python /root/bellserver/bellserver.py &
+}                 
+                  
+stop() {          
+        echo stopping bellserver
+        ps ax | grep bellserver | grep -v grep | awk '{print $1}' | xargs kill        
+}

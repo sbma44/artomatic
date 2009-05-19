@@ -11,7 +11,9 @@ import SocketServer
 
 
 def log(message):
-    print "%f - %s" % (time.time(), message)
+    f = open('/var/log/bellserver.log', 'a')
+    f.write("%f - %s\n" % (time.time(), message))
+    f.close()
 
 class SerialHolder(object):
     SERIAL_BELL_STRIKE_SIGNAL = '#'
@@ -52,17 +54,12 @@ class SerialHolder(object):
     def close(self):
         self.serial_connection.close()
                 
-                
-class adsas(object):
-    """docstring for adsas"""
-    def __init__(self, arg):
-        super(adsas, self).__init__()
-        self.arg = arg
-                        
+
 
 class SocketServerWrapper(SocketServer.TCPServer):
     """docstring for SocketServerWrapper"""
     def __init__(self, *args):
+        log("Starting server")
         self.allow_reuse_address = True
         SocketServer.TCPServer.__init__(self,*args)
 
@@ -72,12 +69,12 @@ class BellServer(SocketServer.StreamRequestHandler):
 
     NETWORK_BELL_STRIKE_SIGNAL = 'DING'
     NETWORK_BELL_STRIKE_CONFIRMATION = 'DONG'
-    
-        
+            
     def strike_bell(self):
         """
         Send a bell strike notification to the Arduino over the serial link
         """
+        log("Striking bell")
         global serialholder
         if serialholder is not None:
             serialholder.strike_bell()
@@ -91,10 +88,12 @@ class BellServer(SocketServer.StreamRequestHandler):
         
         
 class BellClient(object):
-    
+    """
+    Monitors the serial port for strikes and sends network messages when they're found
+    """
 
-    
     def __init__(self):
+        log("Starting client")
         super(BellClient, self).__init__()
      
         self.RECIPIENTS = settings.RECIPIENTS
@@ -102,11 +101,6 @@ class BellClient(object):
 
         self.NETWORK_BELL_STRIKE_SIGNAL = 'DING'
         self.NETWORK_BELL_STRIKE_CONFIRMATION = 'DONG'
-     
-        # create another socket to send communication to each recipient
-        # log("Creating outbound sockets")
-        # self.outbound_sockets = {}
-        # self.setup_outbound_sockets()
             
     def bell_strike_detected(self):
         """
@@ -122,97 +116,27 @@ class BellClient(object):
         """
         Send a bell strike notification across the network
         """
-        # failed_sockets = {}
-        # for s in self.outbound_sockets:            
-        #     data = None
-        #     try:                
-        #         self.outbound_sockets[s].send(self.NETWORK_BELL_STRIKE_SIGNAL + "\n")
-        #         data = self.outbound_sockets[s].recv(1024)
-        #         self.outbound_sockets[s].close()
-        #     except:
-        #         failed_sockets[s] = self.outbound_sockets[s]            
-        #     if data==self.NETWORK_BELL_STRIKE_CONFIRMATION:
-        #         log("Successfully sent bell strike")
-        # 
-        # self.reset_sockets(failed_sockets)
-        log("Transmitting bell strike")
+        log("Transmitting bell strike to %d recipient(s)" % len(self.RECIPIENTS))
 
         for recipient in self.RECIPIENTS:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)       
-            s.settimeout(0.5)
+            s.settimeout(1)
             s.connect((recipient, self.PORT))
             s.send(self.NETWORK_BELL_STRIKE_SIGNAL + "\n")            
-            log("Receiving data")
-            data = s.recv(1024)
-            log("Done receiving data")
+
+            data = ''
+            try:
+                data = s.recv(1024)
+            except Exception, e:
+                pass
+
             s.close()
             
             if data==self.NETWORK_BELL_STRIKE_CONFIRMATION:
                 log("Successfully sent bell strike to %s" % recipient)
-            
-
-    def _open_xmit_socket(self, recipient):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)       
-        s.connect((recipient, self.PORT))
-        return s
-
-
-    def setup_outbound_sockets(self):
-
-        # try to close any open sockets
-        for recipient in self.outbound_sockets:
-            try:
-                self.outbound_sockets[recipient].close()
-            except:
-                pass
-
-        # create connections
-        for recipient in settings.RECIPIENTS:
-            socket_creation_successful = False
-
-            while not socket_creation_successful:
-                # s = self._open_xmit_socket(recipient)
-                try:
-                    s = self._open_xmit_socket(recipient)
-                except socket.error:
-                    log("Failed to establish connection to %s" % recipient)                    
-                    socket_creation_successful = False
-                    time.sleep(10)
-                else:
-                    socket_creation_successful = True
-
-                if socket_creation_successful:
-                    log("Successfully created connection to %s" % recipient)
-                    self.outbound_sockets[recipient] = s    
-                    break
-
-    def reset_sockets(self, sockets):
-        """
-        Reset the passed sockets. Takes a dict in the form sockets[HOST] = SOCKET
-        """
-        for s in sockets:
-            try:
-                sockets[s].close()
-            except:
-                pass
-
-        for recipient in sockets:
-            socket_creation_successful = False
-
-            while not socket_creation_successful:
-                try:
-                    s = self._open_xmit_socket(recipient)
-                except socket.error:
-                    log("Failed to re-establish connection to %s" % recipient)
-                    socket_creation_successful = False
-                else:
-                    socket_creation_successful = True
-
-                if socket_creation_successful:
-                    self.outbound_sockets[recipient] = s    
-                    break
+            else:
+                log("Unable to confirm bell strike to %s (network timeout?)" % recipient)
 
     
     def listen(self):
@@ -230,69 +154,13 @@ class BellClient(object):
         if serialholder is not None:
             serialholder.close()
 
-        #for s in self.outbound_sockets:
-        #    self.outbound_sockets[s].close()
-
-
-
-
-
-    
-        
-
-        
-    # def loop(self):
-    #     """
-    #     Main server loop
-    #     """
-    #     while True:
-    #         print "loop A"
-    #         
-    # 
-    #         # listen for incoming network data signalling bell strikes (in a non-blocking-compatible manner)
-    #         data_received = False
-    #         try:
-    #             conn, addr = self.socket.accept()
-    #             data_received = True
-    #         except Exception, e:
-    #             data_received = False
-    #             
-    #         if data_received:
-    #             print 'Connected by', addr
-    #             while 1:
-    #                 print "loop B"
-    #                 data = False
-    #                 try:
-    #                     log("Trying to read data from connection...")
-    #                     data = conn.recv(1024)
-    #                     log("Finished reading data")
-    #                 except Exception, e:
-    #                     print str(e)
-    # 
-    #                 if not data: 
-    #                     print "breaking"
-    #                     break
-    # 
-    #                 if data==self.NETWORK_BELL_STRIKE_SIGNAL:
-    #                     self.strike_bell()                    
-    #                     conn.send(self.NETWORK_BELL_STRIKE_CONFIRMATION)
-    #         
-    #         time.sleep(0.01)
-
 
 global serialholder
 serialholder = SerialHolder()
 
-
 if __name__ == '__main__':
-
-    # record pid
-    pidfile = open('%s/bellserver.pid' % os.path.abspath(os.path.dirname(__file__)),'w')
-    pidfile.write(str(os.getpid()))
-    pidfile.close()    
     
-    if os.fork():        
-        #server = SocketServer.TCPServer( (settings.HOST, settings.PORT), BellServer)
+    if os.fork():
         server = SocketServerWrapper( (settings.HOST, settings.PORT), BellServer)
         server.serve_forever()
     else:

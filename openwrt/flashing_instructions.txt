@@ -1,0 +1,8 @@
+ip_address -l 192.168.1.254/24 -h 192.168.1.166
+fis init
+load -r -b 0x80041000 openwrt-atheros-root.squashfs
+fis create -l 0x06F0000 rootfs
+load -r -b 0x80041000 openwrt-atheros-vmlinux.lzma
+fis create -r 0x80041000 -e 0x80041000 vmlinux.bin.l7
+fis load -l vmlinux.bin.l7
+exec
