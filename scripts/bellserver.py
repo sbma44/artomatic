@@ -122,21 +122,26 @@ class BellClient(object):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)       
             s.settimeout(1)
-            s.connect((recipient, self.PORT))
-            s.send(self.NETWORK_BELL_STRIKE_SIGNAL + "\n")            
-
-            data = ''
-            try:
-                data = s.recv(1024)
-            except Exception, e:
-                pass
-
-            s.close()
             
-            if data==self.NETWORK_BELL_STRIKE_CONFIRMATION:
-                log("Successfully sent bell strike to %s" % recipient)
-            else:
-                log("Unable to confirm bell strike to %s (network timeout?)" % recipient)
+            try:                
+                s.connect((recipient, self.PORT))
+                s.send(self.NETWORK_BELL_STRIKE_SIGNAL + "\n")            
+
+                data = ''
+                try:
+                    data = s.recv(1024)
+                except Exception, e:
+                    pass
+
+                s.close()
+            
+                if data==self.NETWORK_BELL_STRIKE_CONFIRMATION:
+                    log("Successfully sent bell strike to %s" % recipient)
+                else:
+                    log("Unable to confirm bell strike to %s (network timeout?)" % recipient)
+
+            except Exception, e:
+                log("Tried to send bell strike to %s but failed" % recipient)
 
     
     def listen(self):
