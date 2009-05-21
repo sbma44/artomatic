@@ -11,9 +11,19 @@ import SocketServer
 
 
 def log(message):
-    f = open('/var/log/bellserver.log', 'a')
-    f.write("%f - %s\n" % (time.time(), message))
-    f.close()
+    line = "%f - %s\n" % (time.time(), message)
+    
+    filename = getattr(settings,'LOG',False)
+    if filename:
+        try:
+            f = open(filename, 'a')
+            f.write(line)
+            f.close()
+        except Exception, e:
+            filename = False
+    
+    if not filename:
+        print line
 
 class SerialHolder(object):
     SERIAL_BELL_STRIKE_SIGNAL = '#'
